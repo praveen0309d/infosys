@@ -46,40 +46,46 @@ const Login = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
+const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  if (!validateForm()) {
+    return;
+  }
+
+  setIsLoading(true);
+
+  try {
+    const res = await axios.post(`${API_URL}/api/login`, formData);
+
+    // Store token and user data
+    localStorage.setItem("token", res.data.token);
+    localStorage.setItem("user", JSON.stringify(res.data.user));
+
+    if (rememberMe) {
+      localStorage.setItem("rememberedEmail", formData.email);
+    } else {
+      localStorage.removeItem("rememberedEmail");
     }
 
-    setIsLoading(true);
-
-    try {
-      const res = await axios.post(`${API_URL}/api/login`, formData);
-      
-      // Store token and user data
-      localStorage.setItem("token", res.data.token);
-      localStorage.setItem("user", JSON.stringify(res.data.user));
-      
-      if (rememberMe) {
-        localStorage.setItem("rememberedEmail", formData.email);
-      } else {
-        localStorage.removeItem("rememberedEmail");
-      }
-
-      // Redirect to dashboard or home page
+    // ✅ Redirect based on user role
+    const userRole = res.data.user?.role?.toLowerCase();
+    if (userRole === "admin") {
+      window.location.href = "/admindashboard";
+    } else {
       window.location.href = "/dashboard";
-
-    } catch (err) {
-      console.error(err);
-      setErrors({ 
-        submit: err.response?.data?.message || "Login failed. Please check your credentials." 
-      });
-    } finally {
-      setIsLoading(false);
     }
-  };
+
+  } catch (err) {
+    console.error(err);
+    setErrors({
+      submit: err.response?.data?.message || "Login failed. Please check your credentials.",
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   // Check for remembered email on component mount
   React.useEffect(() => {

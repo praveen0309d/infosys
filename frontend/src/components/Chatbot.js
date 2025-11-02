@@ -24,7 +24,16 @@ import {
   AlertTriangle,
   Loader2,
   Volume2,
-  VolumeX
+  VolumeX,
+  Heart,
+  TrendingUp,
+  Clock,
+  Star,
+  ThumbsUp,
+  ThumbsDown,
+  MapPin,
+  Phone,
+  Mail
 } from 'lucide-react';
 import API_URL from '../baseurl';
 import './ChatbotPage.css';
@@ -40,12 +49,27 @@ const ChatbotPage = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState('en'); // 'en', 'ta', 'hi'
+  const [selectedLanguage, setSelectedLanguage] = useState('en');
   const [speechInstance, setSpeechInstance] = useState(null);
-
+  const [userEmotion, setUserEmotion] = useState('neutral');
+  const [symptomSeverity, setSymptomSeverity] = useState(0);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [currentMessageIndex, setCurrentMessageIndex] = useState(null);
+  const [healthAnalytics, setHealthAnalytics] = useState(null);
+  const [showAppointmentModal, setShowAppointmentModal] = useState(false);
+  const [showMedicationModal, setShowMedicationModal] = useState(false);
+const [feedbackGiven, setFeedbackGiven] = useState({});
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const token = localStorage.getItem('token');
+
+  // axios interceptor for authentication
+  useEffect(() => {
+    if (token) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    }
+  }, [token]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -58,16 +82,15 @@ const ChatbotPage = () => {
   useEffect(() => {
     if (user?.id) {
       loadChatHistory();
+      loadHealthAnalytics();
     }
   }, [user?.id]);
 
-  // Clean up speech synthesis on unmount
-// Clean up speech synthesis on unmount
-useEffect(() => {
-  return () => {
-    stopSpeaking();
-  };
-}, []);
+  useEffect(() => {
+    return () => {
+      stopSpeaking();
+    };
+  }, []);
 
   const loadChatHistory = async () => {
     try {
@@ -75,6 +98,18 @@ useEffect(() => {
       setChatHistory(response.data.chats || []);
     } catch (error) {
       console.error('Error loading chat history:', error);
+      if (error.response?.status === 401) {
+        handleLogout();
+      }
+    }
+  };
+
+  const loadHealthAnalytics = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/analytics/health`);
+      setHealthAnalytics(response.data);
+    } catch (error) {
+      console.error('Error loading health analytics:', error);
     }
   };
 
@@ -116,12 +151,26 @@ useEffect(() => {
       const botMessage = {
         text: response.data.response,
         sender: 'bot',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        emotion: response.data.emotion,
+        entities: response.data.entities,
+        severity_score: response.data.severity_score,
+        language: response.data.language
       };
 
       setMessages([...updatedMessages, botMessage]);
       setCurrentChatId(response.data.chat_id);
+      setUserEmotion(response.data.emotion);
+      setSymptomSeverity(response.data.severity_score);
+      
       await loadChatHistory();
+      await loadHealthAnalytics();
+
+      // Auto-show appointment modal for high severity
+      if (response.data.severity_score >= 7) {
+        setTimeout(() => setShowAppointmentModal(true), 1000);
+      }
+
     } catch (error) {
       console.error('Error sending message:', error);
       const errorMessage = {
@@ -130,23 +179,31 @@ useEffect(() => {
         timestamp: new Date().toISOString()
       };
       setMessages([...updatedMessages, errorMessage]);
+      
+      if (error.response?.status === 401) {
+        handleLogout();
+      }
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    navigate('/login');
   };
 
   const handleNewChat = () => {
     setMessages([]);
     setCurrentChatId(null);
     setInputMessage('');
+    setUserEmotion('neutral');
+    setSymptomSeverity(0);
     if (window.innerWidth < 768) {
       setIsSidebarOpen(false);
     }
-    // Stop any ongoing speech
-    if (speechInstance) {
-      speechInstance.cancel();
-      setIsSpeaking(false);
-    }
+    stopSpeaking();
   };
 
   const handleSearch = async (e) => {
@@ -185,79 +242,160 @@ useEffect(() => {
     }
   };
 
+
+const handleFeedback = async (messageIndex, rating, comments = '') => {
+  // Prevent duplicate feedback for the same message
+  if (feedbackGiven[messageIndex]) return;
+
+  try {
+    await axios.post(`${API_URL}/api/chat/feedback`, {
+      chat_id: currentChatId,
+      message_index: messageIndex,
+      rating: rating,
+      comments: comments
+    });
+
+    // Update only the clicked message feedback
+    setFeedbackGiven(prev => ({
+      ...prev,
+      [messageIndex]: rating
+    }));
+  } catch (error) {
+    console.error('Error submitting feedback:', error);
+  }
+};
+
+
+  const handleBookAppointment = async (appointmentData) => {
+    try {
+      const response = await axios.post(`${API_URL}/api/appointment/book`, appointmentData);
+      setShowAppointmentModal(false);
+      // Add confirmation message to chat
+      const confirmationMessage = {
+        text: `Appointment request submitted! Your reference ID: ${response.data.appointment_id}. We'll contact you shortly.`,
+        sender: 'bot',
+        timestamp: new Date().toISOString()
+      };
+      setMessages(prev => [...prev, confirmationMessage]);
+    } catch (error) {
+      console.error('Error booking appointment:', error);
+    }
+  };
+
+  const handleAddMedication = async (medicationData) => {
+    try {
+      const response = await axios.post(`${API_URL}/api/medication/reminder`, medicationData);
+      setShowMedicationModal(false);
+      // Add confirmation message to chat
+      const confirmationMessage = {
+        text: `Medication reminder set for ${medicationData.name}! You'll receive reminders as scheduled.`,
+        sender: 'bot',
+        timestamp: new Date().toISOString()
+      };
+      setMessages(prev => [...prev, confirmationMessage]);
+    } catch (error) {
+      console.error('Error adding medication:', error);
+    }
+  };
+
   // Text-to-Speech function
-// Text-to-Speech function
-const speakText = (text, language = selectedLanguage) => {
-  // Stop any ongoing speech
-  stopSpeaking();
-
-  if ('speechSynthesis' in window) {
-    const speech = new SpeechSynthesisUtterance();
-    
-    // Set language based on selection
-    const languageMap = {
-      'en': 'en-US',
-      'ta': 'ta-IN',
-      'hi': 'hi-IN'
-    };
-    
-    speech.text = text;
-    speech.lang = languageMap[language] || 'en-US';
-    speech.rate = 0.8;
-    speech.pitch = 1;
-    speech.volume = 1;
-
-    speech.onstart = () => {
-      setIsSpeaking(true);
-      setSpeechInstance(speech);
-    };
-
-    speech.onend = () => {
-      setIsSpeaking(false);
-      setSpeechInstance(null);
-    };
-
-    speech.onerror = () => {
-      setIsSpeaking(false);
-      setSpeechInstance(null);
-      console.error('Speech synthesis error');
-    };
-
-    window.speechSynthesis.speak(speech);
-  } else {
-    alert('Text-to-speech is not supported in your browser.');
-  }
-};
-
-const stopSpeaking = () => {
-  if (window.speechSynthesis) {
-    window.speechSynthesis.cancel();
-    setIsSpeaking(false);
-    setSpeechInstance(null);
-  }
-};
-
-const toggleSpeech = (text) => {
-  if (isSpeaking) {
+  const speakText = (text, language = selectedLanguage) => {
     stopSpeaking();
-  } else {
-    speakText(text);
-  }
-};
 
+    if ('speechSynthesis' in window) {
+      const speech = new SpeechSynthesisUtterance();
+      
+      const languageMap = {
+        'en': 'en-US',
+        'ta': 'ta-IN',
+        'hi': 'hi-IN'
+      };
+      
+      speech.text = text;
+      speech.lang = languageMap[language] || 'en-US';
+      speech.rate = 0.8;
+      speech.pitch = 1;
+      speech.volume = 1;
 
+      speech.onstart = () => {
+        setIsSpeaking(true);
+        setSpeechInstance(speech);
+      };
 
+      speech.onend = () => {
+        setIsSpeaking(false);
+        setSpeechInstance(null);
+      };
 
+      speech.onerror = () => {
+        setIsSpeaking(false);
+        setSpeechInstance(null);
+        console.error('Speech synthesis error');
+      };
+
+      window.speechSynthesis.speak(speech);
+    } else {
+      alert('Text-to-speech is not supported in your browser.');
+    }
+  };
+
+  const stopSpeaking = () => {
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      setSpeechInstance(null);
+    }
+  };
+
+  const toggleSpeech = (text) => {
+    if (isSpeaking) {
+      stopSpeaking();
+    } else {
+      speakText(text);
+    }
+  };
 
   const quickActions = [
-    { icon: Stethoscope, title: 'Symptom Checker', prompt: 'I have some symptoms I want to discuss' },
-    { icon: Pill, title: 'Medication Info', prompt: 'Tell me about medications for' },
-    { icon: Utensils, title: 'Nutrition Advice', prompt: 'I need nutrition and diet advice' },
-    { icon: Dumbbell, title: 'Exercise Plan', prompt: 'Help me create an exercise routine' },
-    { icon: Moon, title: 'Sleep Issues', prompt: 'I\'m having trouble with sleep' },
-    { icon: Brain, title: 'Mental Health', prompt: 'I need mental health support' },
-    { icon: Calendar, title: 'Book Appointment', prompt: 'How can I book an appointment?' },
-    { icon: AlertTriangle, title: 'Emergency Help', prompt: 'I need emergency medical advice' }
+    { 
+      icon: Stethoscope, 
+      title: 'Symptom Checker', 
+      prompt: 'I have some symptoms I want to discuss',
+    },
+    { 
+      icon: Pill, 
+      title: 'Medication Info', 
+      prompt: 'Tell me about medications for common conditions',
+    },
+    { 
+      icon: Utensils, 
+      title: 'Nutrition Advice', 
+      prompt: 'I need nutrition and diet advice for better health',
+    },
+    { 
+      icon: Dumbbell, 
+      title: 'Exercise Plan', 
+      prompt: 'Help me create an exercise routine for weight loss',
+    },
+    { 
+      icon: Moon, 
+      title: 'Sleep Issues', 
+      prompt: 'I\'m having trouble with sleep and fatigue',
+    },
+    { 
+      icon: Brain, 
+      title: 'Mental Health', 
+      prompt: 'I need mental health support and coping strategies',
+    },
+    { 
+      icon: Calendar, 
+      title: 'Book Appointment', 
+      prompt: 'How can I book an appointment with a doctor?',
+    },
+    { 
+      icon: AlertTriangle, 
+      title: 'Emergency Help', 
+      prompt: 'I need emergency medical advice right now',
+    }
   ];
 
   const handleQuickAction = (prompt) => {
@@ -277,6 +415,23 @@ const toggleSpeech = (text) => {
     });
   };
 
+  const getSeverityColor = (score) => {
+    if (score >= 8) return '#dc2626';
+    if (score >= 5) return '#f59e0b';
+    return '#10b981';
+  };
+
+  const getEmotionIcon = (emotion) => {
+    const emotionIcons = {
+      happy: '😊',
+      sad: '😔',
+      distressed: '😥',
+      calm: '😌',
+      neutral: '😐'
+    };
+    return emotionIcons[emotion] || '😐';
+  };
+
   return (
     <div className="chatbot-page">
       {/* Sidebar Overlay for Mobile */}
@@ -289,6 +444,8 @@ const toggleSpeech = (text) => {
 
       {/* Left Sidebar */}
       <div className={`chatbot-sidebar ${isSidebarOpen ? 'open' : ''}`}>
+        {/* Health Overview Card */}
+
         {/* New Chat Button */}
         <button className="new-chat-btn" onClick={handleNewChat}>
           <Plus size={18} className="plus-icon" />
@@ -389,7 +546,7 @@ const toggleSpeech = (text) => {
             </div>
             <div className="user-info">
               <div className="user-name">{user.name || 'User'}</div>
-              <div className="user-plan"></div>
+              <div className="user-plan">Premium Health</div>
             </div>
           </div>
           <button 
@@ -417,41 +574,27 @@ const toggleSpeech = (text) => {
             <p>Your AI health companion</p>
           </div>
           <div className="header-actions">
-            {/* Language Selector and TTS Controls */}
+            {/* Emotion & Severity Indicators */}
             {messages.length > 0 && (
-              <div className="tts-controls">
-                <select 
-                  value={selectedLanguage}
-                  onChange={(e) => setSelectedLanguage(e.target.value)}
-                  className="language-select"
-                  disabled={isSpeaking}
-                >
-                  <option value="en">English</option>
-                  <option value="ta">Tamil</option>
-                  <option value="hi">Hindi</option>
-                </select>
-                <button 
-                  className={`header-btn tts-btn ${isSpeaking ? 'speaking' : ''}`}
-                  onClick={() => {
-                    const lastBotMessage = [...messages].reverse().find(msg => msg.sender === 'bot');
-                    if (lastBotMessage) {
-                      toggleSpeech(lastBotMessage.text);
-                    }
-                  }}
-                  disabled={!messages.some(msg => msg.sender === 'bot')}
-                  title={isSpeaking ? 'Stop speaking' : 'Read last message'}
-                >
-                  {isSpeaking ? <VolumeX size={18} /> : <Volume2 size={18} />}
-                </button>
+              <div className="health-indicators">
+                {userEmotion && userEmotion !== 'neutral' && (
+                  <div className="emotion-indicator">
+                    <span className="emotion-emoji">{getEmotionIcon(userEmotion)}</span>
+                    <span className="emotion-text">{userEmotion}</span>
+                  </div>
+                )}
+                {symptomSeverity > 0 && (
+                  <div 
+                    className="severity-indicator"
+                    style={{ color: getSeverityColor(symptomSeverity) }}
+                  >
+                    <AlertTriangle size={14} />
+                    <span>Severity: {symptomSeverity}/10</span>
+                  </div>
+                )}
               </div>
             )}
-            <button 
-              className="header-btn new-chat-header-btn"
-              onClick={handleNewChat}
-              title="New Chat"
-            >
-              <Plus size={20} />
-            </button>
+
           </div>
         </div>
 
@@ -474,8 +617,9 @@ const toggleSpeech = (text) => {
                         key={index}
                         className="quick-action-card"
                         onClick={() => handleQuickAction(action.prompt)}
+                        style={{ '--action-color': action.color }}
                       >
-                        <div className="action-icon">
+                        <div className="action-icon" style={{ backgroundColor: action.color }}>
                           <IconComponent size={20} />
                         </div>
                         <div className="action-title">{action.title}</div>
@@ -491,53 +635,113 @@ const toggleSpeech = (text) => {
                   </div>
                   <div className="feature-item">
                     <Sparkles size={16} className="feature-icon" />
-                    <span>Knowledgeable responses</span>
+                    <span>AI-powered insights</span>
                   </div>
                   <div className="feature-item">
                     <Zap size={16} className="feature-icon" />
                     <span>Instant answers</span>
+                  </div>
+                  <div className="feature-item">
+                    <Heart size={16} className="feature-icon" />
+                    <span>Health tracking</span>
                   </div>
                 </div>
               </div>
             </div>
           ) : (
             <div className="messages-list">
-              {messages.map((message, index) => (
-                <div
-                  key={index}
-                  className={`message ${message.sender === 'user' ? 'user-message' : 'bot-message'}`}
-                >
-                  <div className="message-content">
-                    <div className="message-text">{message.text}</div>
-                    <div className="message-actions">
-                      {message.sender === 'bot' && (
-<button
-  className="speak-btn"
-  onClick={() => {
-    if (isSpeaking) {
-      stopSpeaking();
-    } else {
-      speakText(message.text);
-    }
+{messages.map((message, index) => (
+  <div
+    key={index}
+    className={`message ${message.sender === 'user' ? 'user-message' : 'bot-message'}`}
+  >
+    <div className="message-content">
+
+      {/* ENTITY TAGS */}
+      {message.sender === 'bot' && message.entities && message.entities.length > 0 && (
+        <div className="entities-tags">
+          {message.entities.slice(0, 3).map((entity, idx) => (
+            <span key={idx} className="entity-tag">{entity}</span>
+          ))}
+        </div>
+      )}
+
+      {/* MESSAGE TEXT */}
+<div
+  className="message-text"
+  dangerouslySetInnerHTML={{
+    __html: message.text
+      .replace(/\n/g, '<br>')
+      .replace(/\*(.*?)\*/g, '<b>$1</b>')
+      .replace(/🔍/g, '<span class="emoji">🔍</span>')
+      .replace(/⚕️/g, '<span class="emoji">⚕️</span>')
   }}
-  title={isSpeaking ? 'Stop speaking' : 'Read this message'}
->
-  {isSpeaking ? <VolumeX size={14} /> : <Volume2 size={14} />}
-</button>
-                      )}
-                    </div>
-                    <div className="message-time">
-                      {formatDate(message.timestamp)}
-                    </div>
-                  </div>
-                </div>
-              ))}
+/>
+
+
+
+      {/* MESSAGE ACTIONS */}
+      <div className="message-actions">
+        {message.sender === 'bot' && (
+          <>
+            {/* SPEAK BUTTON */}
+            <button
+              className="speak-btn"
+              onClick={() => toggleSpeech(message.text)}
+              title={isSpeaking ? 'Stop speaking' : 'Read this message'}
+            >
+              {isSpeaking ? <VolumeX size={14} /> : <Volume2 size={14} />}
+            </button>
+
+            {/* FEEDBACK BUTTONS */}
+            <div className="feedback-options">
+              <button
+                className={`thumb-btn ${feedbackGiven[index] === 5 ? 'active' : ''}`}
+                onClick={() => handleFeedback(index, 5)}
+                disabled={!!feedbackGiven[index]}
+                title="Helpful"
+              >
+                <ThumbsUp size={18} />
+              </button>
+
+              <button
+                className={`thumb-btn ${feedbackGiven[index] === 1 ? 'active' : ''}`}
+                onClick={() => handleFeedback(index, 1)}
+                disabled={!!feedbackGiven[index]}
+                title="Not helpful"
+              >
+                <ThumbsDown size={18} />
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* TIMESTAMP & SEVERITY */}
+      <div className="message-time">
+        {formatDate(message.timestamp)}
+        {message.severity_score > 0 && (
+          <span 
+            className="severity-badge"
+            style={{ backgroundColor: getSeverityColor(message.severity_score) }}
+          >
+            Severity: {message.severity_score}/10
+          </span>
+        )}
+      </div>
+
+    </div>
+  </div>
+))}
+
+
+              
               {isLoading && (
                 <div className="message bot-message">
                   <div className="message-content">
-                    <div className="message-content">
+                    <div className="typing-indicator">
                       <Loader2 size={16} className="spinner" />
-                      <span>Wellness Assistant is thinking...</span>
+                      {/* <span>typing...</span> */}
                     </div>
                   </div>
                 </div>
@@ -564,15 +768,13 @@ const toggleSpeech = (text) => {
                 className="send-btn"
                 disabled={!inputMessage.trim() || isLoading}
               >
-                <Send size={16} />
+                {isLoading ? <Loader2 size={16} className="spinner" /> : <Send size={16} />}
               </button>
-            </div>
-            <div className="input-footer">
-              <p>Wellness Assistant can make mistakes. Consider checking important information.</p>
             </div>
           </form>
         </div>
       </div>
+
     </div>
   );
 };

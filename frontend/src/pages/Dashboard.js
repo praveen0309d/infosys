@@ -6,7 +6,7 @@ import AppointmentsSection from '../components/AppointmentsSection';
 import ProfileSection from '../components/ProfileSection';
 import Chatbot from '../components/Chatbot';
 import './Dashboard.css';
-
+import FeedbackForm from '../components/FeedbackForm';
 const Dashboard = () => {
   const [user, setUser] = useState(null);
   const [activeSection, setActiveSection] = useState('overview');
@@ -68,6 +68,7 @@ const Dashboard = () => {
         isOpen={isChatbotOpen}
         onClose={() => setIsChatbotOpen(false)}
       /> */}
+<FeedbackForm userId={user?.id} />
     </div>
   );
 };

@@ -150,18 +150,6 @@ const Signup = () => {
           <p className="signup-subtitle">Create your patient account</p>
         </div>
 
-        {successMessage && (
-          <div className="success-message">
-            <span className="success-icon">✓</span>
-            {successMessage}
-          </div>
-        )}
-
-        {errors.submit && (
-          <div className="error-message">
-            {errors.submit}
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} className="signup-form">
           <div className="form-grid">
@@ -355,6 +343,19 @@ const Signup = () => {
               )}
             </button>
           </div>
+                  {successMessage && (
+          <div className="success-message">
+            <span className="success-icon">✓</span>
+            {successMessage}
+          </div>
+        )}
+
+        {errors.submit && (
+          <div className="error-message">
+            {errors.submit}
+          </div>
+        )}
+
 
           <div className="login-link">
             Already have an account? <a href="/login" className="link">Sign in here</a>

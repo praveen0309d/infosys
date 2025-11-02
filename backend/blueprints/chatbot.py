@@ -18,84 +18,31 @@ client = MongoClient(os.getenv('MONGO_URI', 'mongodb://localhost:27017/'))
 db = client['wellness_db']
 chats_collection = db['chats']
 users_collection = db['users']
-
+feedback_collection = db['feedback']
+keyword_responses=db['keyword_responses']
 # ---------------- NLP Initialization ----------------
 nlp = spacy.load("en_core_web_sm")
 translator = Translator()
 
 # ---------------- Keyword-based Responses ----------------
-keyword_responses = {
-    'hello': "Hello! I'm your Wellness Assistant. How can I help you with your health today?",
-    'hi': "Hi there! I'm here to assist with your health and wellness questions. What can I help you with?",
-    'headache': "Headaches can result from stress or dehydration. Rest, hydrate, and see a doctor if persistent.",
-    'fever': "For fever below 102°F, rest and hydrate. Seek care if it lasts over 3 days or exceeds 103°F.",
-    'cough': "Drink fluids and rest. If it lasts more than 3 weeks or causes difficulty breathing, see a doctor.",
-    'stress': "Try deep breathing and mindfulness. If stress affects your sleep or work, seek professional help.",
-    'diet': "Eat more fruits, vegetables, lean proteins, and whole grains. Avoid excess sugar and salt.",
-    'exercise': "Do at least 150 minutes of activity weekly. Combine cardio and strength training for best results.",
-    # Body Systems
-    'chest pain': 'Chest pain requires immediate evaluation. If accompanied by shortness of breath, sweating, or radiating pain, call 911 immediately.',
-    'abdominal pain': 'Rest and avoid solid foods initially. Seek emergency care for severe pain, fever, vomiting, or if pain moves to lower right abdomen.',
-    'back pain': 'Practice good posture, apply heat/ice, and gentle stretching. See a doctor if pain radiates down legs, causes numbness, or follows injury.',
-    'joint pain': 'Rest the affected joint, apply ice, and consider anti-inflammatory medication. Consult a doctor for persistent swelling or redness.',
-    
-    # Chronic Conditions
-    'diabetes': 'Monitor blood sugar regularly, follow a balanced diet, exercise, and take medications as prescribed. Regular check-ups are essential for management.',
-    'blood pressure': 'Normal BP is below 120/80 mmHg. Monitor regularly, reduce sodium intake, exercise, and take prescribed medications. Consult if consistently above 130/80.',
-    'cholesterol': 'Focus on heart-healthy fats, soluble fiber, and regular exercise. Statins or other medications may be needed as prescribed by your doctor.',
-    'asthma': 'Use inhalers as prescribed, avoid triggers, and have an action plan. Seek emergency care for severe breathing difficulty or if rescue inhaler isn\'t helping.',
-    
-    # Mental Health
-    'anxiety': 'Practice deep breathing, mindfulness, and regular exercise. Limit caffeine and consider therapy. Seek help if anxiety interferes with daily life.',
-    'depression': 'Reach out to loved ones, maintain routine, and consider therapy. For urgent help, contact a crisis hotline. Medication and therapy can be very effective.',
-    'stress': 'Try meditation, exercise, time management, and setting boundaries. Consider talking to a mental health professional for ongoing support.',
-    'mental health': 'Mental health is crucial. Therapy, support groups, and sometimes medication can help. You\'re not alone - professional support is available.',
-    
-    # Lifestyle & Prevention
-    'diet': 'Focus on whole foods: fruits, vegetables, lean proteins, and whole grains. Limit processed foods, sugar, and saturated fats. Stay hydrated!',
-    'exercise': 'Aim for 150 minutes of moderate exercise weekly. Include strength training twice weekly. Always warm up and consult your doctor before new routines.',
-    'sleep': 'Adults need 7-9 hours nightly. Maintain consistent sleep/wake times, limit screens before bed, and create a dark, quiet sleep environment.',
-    'weight': 'Focus on sustainable habits: balanced diet, regular exercise, and adequate sleep. Consult a nutritionist for personalized guidance.',
-    
-    # Medications & Treatments
-    'medicine': 'Take medications exactly as prescribed. Never share prescriptions. Report side effects to your doctor immediately. Keep an updated medication list.',
-    'vaccine': 'Vaccines prevent serious diseases. Stay current with recommended immunizations based on age, health conditions, and travel plans.',
-    'antibiotic': 'Complete the full course as prescribed, even if you feel better. Never save antibiotics for later use or share them with others.',
-    
-    # Appointments & Services
-    'appointment': 'Book appointments online through our portal or call (555) 123-HEAL. Have your insurance information ready when scheduling.',
-    'prescription': 'For refills, contact your pharmacy or use our patient portal. Allow 48 hours for processing. Never skip doses waiting for refills.',
-    'insurance': 'We accept most major insurance plans. Verify coverage with your provider and bring your insurance card to all appointments.',
-    
-    # Emergency & Urgent Care
-    'emergency': 'For life-threatening emergencies: chest pain, difficulty breathing, severe bleeding, or stroke symptoms - CALL 911 IMMEDIATELY.',
-    'urgent': 'For urgent but non-life-threatening issues, visit our urgent care center open 8 AM-8 PM daily. No appointment needed.',
-    
-    # Special Populations
-    'pregnancy': 'Schedule prenatal care early. Take prenatal vitamins, avoid alcohol/smoking, and attend all appointments. Call for any bleeding or severe pain.',
-    'pediatric': 'Children\'s health needs specialized care. Keep up with well-child visits and vaccinations. Trust your instincts as a parent.',
-    'senior': 'Regular health screenings become increasingly important. Discuss fall prevention, medication management, and preventive care with your doctor.',
-    
-    # Wellness & Prevention
-    'prevention': 'Regular check-ups, vaccinations, healthy lifestyle, and screenings are key to preventive care. Know your family health history.',
-    'screening': 'Stay current with age-appropriate screenings: blood pressure, cholesterol, diabetes, and cancer screenings as recommended.',
-    'hydration': 'Aim for 8-10 glasses of water daily. More may be needed with exercise, heat, or illness. Listen to your thirst cues.',
-    
-    # Seasonal Health
-    'allergy': 'Avoid triggers, use antihistamines as directed, and keep windows closed during high pollen seasons. See an allergist for persistent symptoms.',
-    'flu': 'Get annual flu vaccine, practice good hand hygiene, and stay home when sick. Antiviral medications can help if started early.',
-    'cold': 'Rest, hydrate, and use OTC symptom relief. Most colds resolve in 7-10 days. See a doctor if symptoms worsen or persist.',
-    
-    # Additional Common Concerns
-    'skin': 'Protect skin from sun with SPF 30+, moisturize regularly, and check moles for changes. See a dermatologist for concerning changes.',
-    'digestive': 'Eat fiber-rich foods, stay hydrated, and exercise regularly. Consult for persistent digestive issues or blood in stool.',
-    'vision': 'Get regular eye exams, protect eyes from UV light, and take screen breaks. Sudden vision changes require immediate attention.',
-    
-    # General Health Advice
-    'healthy': 'A balanced lifestyle includes: nutritious diet, regular exercise, adequate sleep, stress management, and preventive healthcare.',
-    'checkup': 'Annual physicals help catch issues early. Discuss any concerns, family history, and lifestyle factors with your provider.',
-    'advice': 'I provide general health information. Always consult healthcare professionals for personal medical advice and treatment.'
-}
+def get_keyword_responses_from_db():
+    """Fetch all keyword-response pairs from MongoDB"""
+    responses = {}
+    try:
+        cursor = db['keyword_responses'].find()
+        for doc in cursor:
+            keyword = doc.get('keyword', '').lower()
+            response = doc.get('response') or doc.get('responses', [])
+
+            # Always keep list format
+            if isinstance(response, list):
+                responses[keyword] = response
+            elif response:
+                responses[keyword] = [response]  # wrap single string into list
+
+    except Exception as e:
+        print(f"Error fetching keyword responses: {e}")
+    return responses
 
 # Enhanced FAQ database
 
@@ -140,10 +87,20 @@ def detect_language(text):
 # ---------------- Keyword Response ----------------
 def get_keyword_response(message):
     message_lower = message.lower()
-    for keyword, response in keyword_responses.items():
+    keyword_responses = get_keyword_responses_from_db()  # Fetch from MongoDB
+
+    for keyword, responses in keyword_responses.items():
         if keyword in message_lower:
-            return response
-    
+            # If the keyword matches and responses is a list, format it properly
+            if isinstance(responses, list):
+                formatted_response = "Here are some suggestions:\n" + "\n".join(
+                    [f"- {r}" for r in responses]
+                )
+
+                return formatted_response
+            else:
+                return responses  # Single string fallback
+
     # Fuzzy match
     best_match = None
     highest_ratio = 0
@@ -151,12 +108,22 @@ def get_keyword_response(message):
         ratio = difflib.SequenceMatcher(None, message_lower, keyword).ratio()
         if ratio > highest_ratio and ratio > 0.6:
             highest_ratio = ratio
-            best_match = keyword_responses[keyword]
-    
+            best_match = keyword
+
     if best_match:
-        return best_match
-    
-    return "I'm here to help with your health and wellness questions. Could you please provide more details?"
+        responses = keyword_responses[best_match]
+        if isinstance(responses, list):
+            formatted_response = "Here are some suggestions:\n" + "\n".join(
+                [f"- {r}" for r in responses]
+            )
+            return formatted_response
+        else:
+            return responses
+
+    return (
+        "I'm here to help with your health and wellness questions. "
+        "Could you please provide more details?"
+    )
 
 # ---------------- MongoDB Chat Handlers ----------------
 def save_chat_to_mongodb(user_id, chat_data):
@@ -204,22 +171,48 @@ def send_message():
         user_id = data.get('user_id')
         message = data.get('message', '').strip()
         chat_id = data.get('chat_id')
-        
+
         if not user_id or not message:
             return jsonify({'error': 'User ID and message required'}), 400
 
+        # Detect language and translate if needed
         detected_lang = detect_language(message)
         message_en = translate_message(message, 'en') if detected_lang != 'en' else message
 
+        # Extract entities
         entities = extract_health_entities(message_en)
-        bot_response_en = get_keyword_response(message_en)
-        if entities:
-            bot_response_en += f"\n\n🔍 I noticed you mentioned: {', '.join(entities)}."
-        bot_response_en += AUTO_DISCLAIMER
-        bot_response = translate_message(bot_response_en, detected_lang) if detected_lang != 'en' else bot_response_en
 
-        user_message = {'text': message, 'sender': 'user', 'timestamp': datetime.utcnow().isoformat()}
-        bot_message = {'text': bot_response, 'sender': 'bot', 'timestamp': datetime.utcnow().isoformat()}
+        # Get keyword-based response
+        bot_response_en = get_keyword_response(message_en)
+
+        # Add entities (if found)
+        if entities:
+            bot_response_en += f"\n\n🔍 *I noticed you mentioned:* {', '.join(entities)}."
+
+        # Add disclaimer with emoji and newline
+        bot_response_en += (
+            "\n\n ⚠️*Disclaimer:* I provide general health information. "
+            "Always consult a qualified medical professional for personal diagnosis or treatment."
+        )
+
+        # Translate back to original language (if needed)
+        bot_response = (
+            translate_message(bot_response_en, detected_lang)
+            if detected_lang != 'en'
+            else bot_response_en
+        )
+
+        # Save messages
+        user_message = {
+            'text': message,
+            'sender': 'user',
+            'timestamp': datetime.utcnow().isoformat()
+        }
+        bot_message = {
+            'text': bot_response,
+            'sender': 'bot',
+            'timestamp': datetime.utcnow().isoformat()
+        }
 
         if chat_id:
             messages = get_chat_messages(chat_id) + [user_message, bot_message]
@@ -344,7 +337,7 @@ def get_recent_chats(user_id):
         })
     return jsonify({'results': results})
 
-@chatbot_bp.route('/chat/health', methods=['GET'])
+@chatbot_bp.route('/analytics/health', methods=['GET'])
 def health_check():
     return jsonify({
         'status': 'healthy',
@@ -352,3 +345,34 @@ def health_check():
         'database': 'connected' if client else 'disconnected'
     })
 
+def save_feedback(chat_id, message_index, rating, comments=""):
+    """Save user feedback for specific message"""
+    try:
+        feedback = {
+            'chat_id': chat_id,
+            'message_index': message_index,
+            'rating': rating,  # 1-5 or thumbs up/down
+            'comments': comments,
+            'created_at': datetime.utcnow()
+        }
+        feedback_collection.insert_one(feedback)
+        return True
+    except Exception as e:
+        print(f"Error saving feedback: {e}")
+        return False
+
+@chatbot_bp.route('/chat/feedback', methods=['POST'])
+def submit_feedback():
+    try:
+        data = request.get_json()
+        chat_id = data.get('chat_id')
+        message_index = data.get('message_index')
+        rating = data.get('rating')
+        comments = data.get('comments', '')
+        
+        if save_feedback(chat_id, message_index, rating, comments):
+            return jsonify({'message': 'Feedback saved successfully'})
+        return jsonify({'error': 'Failed to save feedback'}), 400
+    except Exception as e:
+        print(f"Error in feedback: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
