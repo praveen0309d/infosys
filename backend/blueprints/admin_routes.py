@@ -16,6 +16,7 @@ admins_collection = db['admins']
 users_collection = db['patients']
 chats_collection = db['chats']
 feedback_collection = db['feedback']
+text_feedbacks = db['text_feedbacks']
 keyword_responses = db['keyword_responses']
 
 # ---------------- Helper ----------------
@@ -255,4 +256,33 @@ def analytics_dashboard():
 
     except Exception as e:
         print(f"Error in analytics_dashboard: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+
+# ---------------- TEXT FEEDBACK MONITORING ----------------
+@admin_bp.route('/admin/text_feedbacks', methods=['GET'])
+def view_text_feedbacks():
+    """View all text feedbacks with user details (if available)."""
+    try:
+        feedbacks = list(text_feedbacks.find().sort('created_at', -1))
+        results = []
+
+        for fb in feedbacks:
+            # Fetch user details from patients collection
+            user = users_collection.find_one({'_id': ObjectId(fb['_id'])}) if fb.get('_id') else None
+            # name = user.get('name', 'Unknown') if user else 'Unknown'
+
+            results.append({
+                '_id': str(fb.get('_id')),
+                'user_id': str(fb.get('user_id')) if fb.get('user_id') else 'N/A',
+                'user_name': fb.get('name', 0),
+                'rating': fb.get('rating', 0),
+                'feedback': fb.get('feedback', ''),
+                'created_at': fb.get('created_at').isoformat() if fb.get('created_at') else 'N/A'
+            })
+
+        return jsonify(results), 200
+
+    except Exception as e:
+        print(f"Error fetching text feedbacks: {e}")
         return jsonify({'error': 'Internal server error'}), 500

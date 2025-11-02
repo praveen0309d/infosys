@@ -30,6 +30,7 @@ def submit_feedback():
 
         feedback_doc = {
             "user_id": ObjectId(user_id),
+            "name": user.get("name", "Unknown"),
             "rating": int(rating),
             "feedback": feedback,
             "created_at": datetime.utcnow()

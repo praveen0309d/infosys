@@ -17,7 +17,7 @@ import UserManagement from './UserManagement';
 import KeywordManager from './KeywordManager';
 import FeedbackMonitor from './FeedbackMonitor';
 import Analytics from './Analytics';
-// import Chats from './Chats';
+import TextFeedback from './TextFeedback.js';
 import './AdminDashboard.css';
 import API_URL from '../../baseurl';
 
@@ -63,7 +63,7 @@ const handleLogout = () => {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
     { id: 'users', label: 'User Management', icon: Users },
-    // { id: 'chats', label: 'Chats', icon: MessageSquare },
+    { id: 'TextFeedback', label: 'TextFeedback', icon: MessageSquare },
     { id: 'keywords', label: 'Keywords', icon: Key },
     { id: 'feedback', label: 'Feedback', icon: ThumbsUp },
     { id: 'analytics', label: 'Analytics', icon: TrendingUp }
@@ -79,8 +79,8 @@ const handleLogout = () => {
         return <FeedbackMonitor />;
       case 'analytics':
         return <Analytics />;
-      // case 'chats':
-      //   return <Chats />;
+      case 'TextFeedback':
+        return <TextFeedback />;
       default:
         return (
           <div className="dashboard-overview">

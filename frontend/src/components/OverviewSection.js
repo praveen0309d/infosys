@@ -1,4 +1,24 @@
 import React from 'react';
+import { 
+  Calendar, 
+  Clock, 
+  Download, 
+  Heart, 
+  Activity, 
+  Scale, 
+  Moon, 
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  Pill,
+  Stethoscope,
+  Phone,
+  FileText,
+  User,
+  Droplets,
+  Footprints,
+  Bed
+} from 'lucide-react';
 import './OverviewSection.css';
 
 const OverviewSection = ({ user }) => {
@@ -50,52 +70,67 @@ const OverviewSection = ({ user }) => {
   };
 
   const getTrendIcon = (trend) => {
+    if (trend === 'up') return <TrendingUp size={16} className="overview_trend-icon overview_trend-up" />;
+    if (trend === 'down') return <TrendingDown size={16} className="overview_trend-icon overview_trend-down" />;
+    return <Minus size={16} className="overview_trend-icon overview_trend-stable" />;
+  };
+
+  const getMetricIcon = (key) => {
     const icons = {
-      up: '↗️',
-      down: '↘️',
-      stable: '→'
+      heartRate: <Heart size={20} />,
+      bloodPressure: <Activity size={20} />,
+      weight: <Scale size={20} />,
+      bmi: <TrendingUp size={20} />,
+      sleep: <Moon size={20} />,
+      steps: <Footprints size={20} />
     };
-    return icons[trend] || '→';
+    return icons[key] || <Activity size={20} />;
   };
 
   return (
-    <div className="overview-section">
+    <div className="overview_container">
       {/* Welcome Banner */}
-      <div className="welcome-banner">
-        <div className="welcome-content">
-          <h1>Welcome back, {user?.name}! 👋</h1>
+      <div className="overview_welcome-banner">
+        <div className="overview_welcome-content">
+          <h1>Welcome back, {user?.name}!</h1>
           <p>Here's your health overview for today</p>
         </div>
-        <div className="welcome-actions">
-          <button className="primary-btn">Book Appointment</button>
-          <button className="secondary-btn">View Reports</button>
+        <div className="overview_welcome-actions">
+          <button className="overview_primary-btn">
+            <Calendar size={16} />
+            Book Appointment
+          </button>
+          <button className="overview_secondary-btn">
+            <FileText size={16} />
+            View Reports
+          </button>
         </div>
       </div>
 
       {/* Health Metrics Grid */}
-      <div className="section">
-        <h2 className="section-title">Health Metrics</h2>
-        <div className="metrics-grid">
+      <div className="overview_section">
+        <h2 className="overview_section-title">Health Metrics</h2>
+        <div className="overview_metrics-grid">
           {Object.entries(healthMetrics).map(([key, metric]) => (
-            <div key={key} className="metric-card">
-              <div className="metric-header">
-                <h3 className="metric-name">
-                  {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
-                </h3>
+            <div key={key} className="overview_metric-card">
+              <div className="overview_metric-header">
+                <div className="overview_metric-icon">
+                  {getMetricIcon(key)}
+                </div>
                 <span 
-                  className="metric-status"
+                  className="overview_metric-status"
                   style={{ color: getStatusColor(metric.status) }}
                 >
                   {metric.status}
                 </span>
               </div>
-              <div className="metric-value">
+              <div className="overview_metric-value">
                 {metric.value}
-                <span className="metric-unit">{metric.unit}</span>
+                <span className="overview_metric-unit">{metric.unit}</span>
               </div>
-              <div className="metric-trend">
-                <span className="trend-icon">{getTrendIcon(metric.trend)}</span>
-                <span className="trend-text">Today</span>
+              <div className="overview_metric-trend">
+                {getTrendIcon(metric.trend)}
+                <span className="overview_trend-text">Today</span>
               </div>
             </div>
           ))}
@@ -103,31 +138,32 @@ const OverviewSection = ({ user }) => {
       </div>
 
       {/* Content Grid */}
-      <div className="content-grid">
+      <div className="overview_content-grid">
         {/* Upcoming Appointments */}
-        <div className="content-card">
-          <div className="card-header">
+        <div className="overview_content-card">
+          <div className="overview_card-header">
             <h3>Upcoming Appointments</h3>
-            <button className="view-all-btn">View All</button>
+            <button className="overview_view-all-btn">View All</button>
           </div>
-          <div className="appointments-list">
+          <div className="overview_appointments-list">
             {upcomingAppointments.map(appointment => (
-              <div key={appointment.id} className="appointment-item">
-                <div className="appointment-info">
-                  <div className="appointment-main">
+              <div key={appointment.id} className="overview_appointment-item">
+                <div className="overview_appointment-info">
+                  <div className="overview_appointment-main">
                     <h4>{appointment.doctor}</h4>
-                    <p className="appointment-specialty">{appointment.specialty}</p>
+                    <p className="overview_appointment-specialty">{appointment.specialty}</p>
                   </div>
-                  <div className="appointment-details">
-                    <span className="appointment-type">{appointment.type}</span>
-                    <span className="appointment-time">
+                  <div className="overview_appointment-details">
+                    <span className="overview_appointment-type">{appointment.type}</span>
+                    <span className="overview_appointment-time">
+                      <Calendar size={14} />
                       {appointment.date} at {appointment.time}
                     </span>
                   </div>
                 </div>
-                <div className="appointment-actions">
-                  <button className="action-btn primary">Join</button>
-                  <button className="action-btn secondary">Reschedule</button>
+                <div className="overview_appointment-actions">
+                  <button className="overview_action-btn overview_primary">Join</button>
+                  <button className="overview_action-btn overview_secondary">Reschedule</button>
                 </div>
               </div>
             ))}
@@ -135,23 +171,24 @@ const OverviewSection = ({ user }) => {
         </div>
 
         {/* Current Medications */}
-        <div className="content-card">
-          <div className="card-header">
+        <div className="overview_content-card">
+          <div className="overview_card-header">
             <h3>Current Medications</h3>
-            <button className="view-all-btn">Manage</button>
+            <button className="overview_view-all-btn">Manage</button>
           </div>
-          <div className="medications-list">
+          <div className="overview_medications-list">
             {recentMedications.map((med, index) => (
-              <div key={index} className="medication-item">
-                <div className="medication-info">
+              <div key={index} className="overview_medication-item">
+                <div className="overview_medication-info">
                   <h4>{med.name}</h4>
                   <p>{med.dosage} • {med.frequency}</p>
-                  <span className="medication-next">
+                  <span className="overview_medication-next">
+                    <Clock size={14} />
                     Next dose: {med.nextDose}
                   </span>
                 </div>
-                <div className="medication-status">
-                  <div className="status-indicator active"></div>
+                <div className="overview_medication-status">
+                  <div className="overview_status-indicator overview_active"></div>
                   <span>Active</span>
                 </div>
               </div>
@@ -160,53 +197,53 @@ const OverviewSection = ({ user }) => {
         </div>
 
         {/* Quick Actions */}
-        <div className="content-card">
-          <div className="card-header">
+        <div className="overview_content-card">
+          <div className="overview_card-header">
             <h3>Quick Actions</h3>
           </div>
-          <div className="quick-actions-grid">
-            <button className="quick-action-btn">
-              <span className="action-icon">📋</span>
-              <span className="action-text">Health Report</span>
+          <div className="overview_quick-actions-grid">
+            <button className="overview_quick-action-btn">
+              <FileText size={20} className="overview_action-icon" />
+              <span className="overview_action-text">Health Report</span>
             </button>
-            <button className="quick-action-btn">
-              <span className="action-icon">💊</span>
-              <span className="action-text">Medication Refill</span>
+            <button className="overview_quick-action-btn">
+              <Pill size={20} className="overview_action-icon" />
+              <span className="overview_action-text">Medication Refill</span>
             </button>
-            <button className="quick-action-btn">
-              <span className="action-icon">🏥</span>
-              <span className="action-text">Find Doctor</span>
+            <button className="overview_quick-action-btn">
+              <Stethoscope size={20} className="overview_action-icon" />
+              <span className="overview_action-text">Find Doctor</span>
             </button>
-            <button className="quick-action-btn">
-              <span className="action-icon">📞</span>
-              <span className="action-text">Emergency</span>
+            <button className="overview_quick-action-btn">
+              <Phone size={20} className="overview_action-icon" />
+              <span className="overview_action-text">Emergency</span>
             </button>
           </div>
         </div>
 
         {/* Health Tips */}
-        <div className="content-card health-tips">
-          <div className="card-header">
+        <div className="overview_content-card overview_health-tips">
+          <div className="overview_card-header">
             <h3>Health Tips</h3>
           </div>
-          <div className="tips-list">
-            <div className="tip-item">
-              <span className="tip-icon">💧</span>
-              <div className="tip-content">
+          <div className="overview_tips-list">
+            <div className="overview_tip-item">
+              <Droplets size={20} className="overview_tip-icon" />
+              <div className="overview_tip-content">
                 <h4>Stay Hydrated</h4>
                 <p>Drink at least 8 glasses of water today</p>
               </div>
             </div>
-            <div className="tip-item">
-              <span className="tip-icon">🚶</span>
-              <div className="tip-content">
+            <div className="overview_tip-item">
+              <Footprints size={20} className="overview_tip-icon" />
+              <div className="overview_tip-content">
                 <h4>Daily Walk</h4>
                 <p>You're close to your 10,000 steps goal!</p>
               </div>
             </div>
-            <div className="tip-item">
-              <span className="tip-icon">😴</span>
-              <div className="tip-content">
+            <div className="overview_tip-item">
+              <Bed size={20} className="overview_tip-icon" />
+              <div className="overview_tip-content">
                 <h4>Sleep Well</h4>
                 <p>Great sleep duration last night</p>
               </div>
