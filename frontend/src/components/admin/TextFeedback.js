@@ -34,7 +34,7 @@ const AdminFeedbackAnalytics = () => {
   const fetchFeedbacks = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/admin/text_feedbacks`);
+      const res = await fetch(`${API_URL}api/admin/text_feedbacks`);
       const data = await res.json();
       setFeedbacks(data);
       generateChartData(data);

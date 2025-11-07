@@ -1,4 +1,4 @@
-let API_URL = "http://localhost:5000/"; // ✅ Default for local dev
+let API_URL = "http://127.0.0.1:5000/"; // ✅ Default for local dev
 
 // ✅ If your frontend is running on Dev Tunnel (like VSCode tunnel)
 if (window.location.hostname.includes("devtunnels.ms")) {
@@ -7,7 +7,7 @@ if (window.location.hostname.includes("devtunnels.ms")) {
 
 // ✅ If accessed over LAN (from another device)
 else if (window.location.hostname.startsWith("10.")) {
-  API_URL = "http://10.201.130.32:5000/"; // your Flask LAN IP
+  API_URL = "http://10.89.172.32:5000/"; // your Flask LAN IP
 }
 
 export default API_URL;

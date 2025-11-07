@@ -56,7 +56,7 @@ const handleSubmit = async (e) => {
   setIsLoading(true);
 
   try {
-    const res = await axios.post(`${API_URL}/api/login`, formData);
+    const res = await axios.post(`${API_URL}api/login`, formData);
 
     // Store token and user data
     localStorage.setItem("token", res.data.token);

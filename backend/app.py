@@ -14,6 +14,10 @@ app.config['SECRET_KEY'] = "your_secret_key_here"
 # Enable CORS for React frontend
 CORS(app)
 
+
+@app.route('/')
+def home():
+    return "Backend running successfully!"
 # Register Blueprints
 app.register_blueprint(auth_bp, url_prefix="/api")
 app.register_blueprint(chatbot_bp, url_prefix="/api")

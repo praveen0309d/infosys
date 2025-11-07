@@ -7,7 +7,7 @@ import os
 feedback_bp = Blueprint("feedback_bp", __name__)
 
 # MongoDB connection
-client = MongoClient(os.getenv("MONGO_URI", "mongodb://localhost:27017/"))
+client = MongoClient(os.getenv('MONGO_URI', 'mongodb://localhost:27017/'))
 db = client["wellness_db"]  # ✅ Use your DB name
 feedback_collection = db["text_feedbacks"]
 patients_collection = db["patients"]

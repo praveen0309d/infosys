@@ -11,7 +11,8 @@ import traceback
 auth_bp = Blueprint("auth_bp", __name__)
 
 # MongoDB setup
-client = MongoClient("mongodb://localhost:27017/")
+mongo_uri = os.environ.get("MONGO_URI")
+client = MongoClient(mongo_uri)
 db = client["wellness_db"]
 patients_collection = db["patients"]
 admins_collection = db["admins"]
